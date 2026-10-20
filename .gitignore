@@ -1,0 +1,34 @@
+# Python build / packaging artifacts
+*.egg-info/
+build/
+
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+.cache/
+
+# uv / virtual env (uv.lock is tracked for reproducible installs)
+.venv/
+
+# Editors / tooling
+.cursor/
+.claude/
+
+# Datasets and run outputs (user-generated, not shipped)
+data/
+outputs/
+runs/
+results/
+logs/
+*.log
+wandb/
+figs/
+figures/
+tmp/
+
+# Checkpoints: the released ones are downloaded from the Hugging Face Hub (README.md, "Checkpoints"),
+# and training runs write to checkpoints/<project_name>/<run_name>.
+checkpoints/
+
+# Mini-ARC raw tasks (cloned from github.com/KSB21ST/MINI-ARC)
+raw_data/

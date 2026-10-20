@@ -1,0 +1,44 @@
+# EqR (Equilibrium Reasoners; Huang, Geng, Kolter 2026, arXiv:2605.21488), ported in
+# models/equilibrium_reasoning/ from github.com/locuslab/EqR @ 134c754 (Apache-2.0).
+#
+# Mirrors upstream config/arch/eqr.yaml key-for-key and value-for-value (paper-scale model:
+# Sudoku defaults, TRM trunk). Two blocks differ:
+#   * name/loss: this repo's loader path, and this repo's ACTLossHead with the flags that
+#     reproduce upstream's loss (stablemax CE / per-sample label count + 0.5 * BCE(q_halt,
+#     sequence correct), no q_continue term).
+#   * puzzle_emb_ndim / puzzle_emb_len: EqRConfig's defaults (0), written out because
+#     create_model() reads arch.puzzle_emb_ndim. Upstream sets them in its train configs.
+name: equilibrium_reasoning.eqr@EqRModel
+short_name: EqR    # upstream ArchConfig field, unused here (EqRConfig ignores it)
+loss:
+  name: losses@ACTLossHead
+  loss_type: stablemax_cross_entropy
+  q_loss_coeff: 0.5        # upstream: total = lm_loss + 0.5 * q_halt_loss
+  deep_supervision: true   # lm loss on every ACT segment (as upstream)
+
+halt_exploration_prob: 0.1
+halt_max_steps: 16
+
+H_cycles: 3
+L_cycles: 6
+
+H_layers: 0   # unused by EqR (one shared L_level stack), kept as in upstream
+L_layers: 2
+
+hidden_size: 512
+num_heads: 8
+expansion: 4
+
+pos_encodings: rope
+board_height: 9    # only read when pos_encodings: rope2d
+board_width: 9
+forward_dtype: bfloat16
+mlp_t: false
+
+lambda_: 0.95      # relaxation: z <- (1 - lambda_) z + lambda_ f(z + x) + noise
+noise_scale: 0.01  # Langevin noise std, every L_level call, train and eval
+H_init_std: 1.0    # per-sample truncated-normal re-init of z_H / z_L on reset
+L_init_std: 1.0
+
+puzzle_emb_ndim: 0
+puzzle_emb_len: 0

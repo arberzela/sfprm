@@ -1,0 +1,75 @@
+# HRM (Hierarchical Reasoning Model, Wang et al. 2025, arXiv:2506.21734) on Mini-ARC -- baseline for the
+# SFPRM Mini-ARC benchmark (config/cfg_pretrain_sfprm_miniarc.yaml has the dataset build recipe).
+#
+# HRM's own ARC-1 recipe with ONLY the shared Mini-ARC protocol swapped in (the pattern of
+# config/cfg_pretrain_miniarc_fprm.yaml). Upstream = github.com/sapientinc/HRM @ ac15626 
+#
+#   python pretrain.py --config-name cfg_pretrain_miniarc_hrm
+
+defaults:
+  - arch: hrm
+  - _self_
+
+hydra:
+  output_subdir: null
+
+# Data [P]
+data_paths: ['data/miniarc-aug-100']
+data_paths_test: []
+
+evaluators:
+  - name: miniarc@MiniARC        # in-run vote pooled over evals 1..k (aggregated_voting default)
+  - name: miniarc@MiniARCSingle  # this checkpoint only; logged as eval/MiniARC_single/*
+
+# Training
+global_batch_size: 768        # [cfg] = [P]
+epochs: 100000                # [cfg] = [P]
+eval_interval: 5000           # [P] ([cfg]: 10000)
+min_eval_interval: 0          # [code] HRM evaluates at every interval = [P]
+checkpoint_every_eval: true   # [cfg] = [P]
+
+optimizer: adam_atan2         # [code] AdamATan2 (see the optimizer note above)
+lr: 7.853981633974483e-05     # = [cfg] 1e-4 * pi/4 (this repo's AdamATan2 has a = 4/pi, upstream's a = 1)
+lr_min_ratio: 1.0             # [cfg] constant LR after the warm-up
+lr_warmup_steps: 2000         # [cfg]
+weight_decay: 0.12732395447351627  # = [cfg] 0.1 * 4/pi, so lr * wd = 1e-5 per step as upstream
+beta1: 0.9                    # [cfg]
+beta2: 0.95                   # [cfg]
+
+puzzle_emb_lr: 1e-2           # [cfg]
+puzzle_emb_weight_decay: 0.1  # [cfg]
+
+project_name: sfprm-miniarc   # [P]
+seed: 0                       # [code] default = [P]
+ema: false                    # [code] HRM has no EMA (see above)
+ema_rate: 0.999               # inert while ema is false
+freeze_weights: false         # this repo's knob; false = upstream
+profile_flops: false          # this repo's FLOP profiler, off
+
+# Architecture (overrides config/arch/hrm.yaml; every key models/recursive_reasoning/hrm.py reads is set)
+arch:
+  loss:
+    name: losses@ACTLossHead
+    loss_type: stablemax_cross_entropy  # [arch]
+    q_loss_coeff: 0.5                   # [code] lm + 0.5 * (q_halt + q_continue)
+    deep_supervision: true              # [code] lm loss on every segment (upstream has no switch)
+
+  halt_exploration_prob: 0.1   # [arch]
+  halt_max_steps: 16           # [arch]
+
+  H_cycles: 2                  # [arch]
+  L_cycles: 2                  # [arch]
+  H_layers: 4                  # [arch]
+  L_layers: 4                  # [arch]
+
+  hidden_size: 512             # [arch]
+  num_heads: 8                 # [arch]
+  expansion: 4                 # [arch]
+  puzzle_emb_ndim: 512         # [arch] ${.hidden_size}; HRM derives ceil(512/512) = 1 puzzle token (it does
+                               # not read puzzle_emb_len): 1 + 25 grid tokens = 26
+  pos_encodings: rope          # [arch]
+  rope_theta: 10000.0          # [code] config default
+  rms_norm_eps: 1.0e-5         # [code] config default
+  forward_dtype: bfloat16      # [code] config default (hrm_v1.yaml does not set it)
+
+  mlp_t: false                 # this repo's knob; false = upstream (HRM has only the attention block)

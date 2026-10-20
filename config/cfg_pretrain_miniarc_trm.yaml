@@ -1,0 +1,98 @@
+# TRM (Tiny Recursive Model, Jolicoeur-Martineau 2025, arXiv:2510.04871) on Mini-ARC -- baseline for the
+# SFPRM Mini-ARC benchmark (config/cfg_pretrain_sfprm_miniarc.yaml has the dataset build recipe).
+#
+# TRM's own ARC-AGI-1 recipe with ONLY the shared Mini-ARC protocol swapped in (the pattern of
+# config/cfg_pretrain_miniarc_fprm.yaml). Upstream = github.com/SamsungSAILMontreal/TinyRecursiveModels
+# @ c011037 
+#
+#   python pretrain.py --config-name cfg_pretrain_miniarc_trm
+
+defaults:
+  - arch: trm
+  - _self_
+
+hydra:
+  output_subdir: null
+
+# Data [P]
+data_paths: ['data/miniarc-aug-100']
+data_paths_test: []
+
+evaluators:
+  - name: miniarc@MiniARC        # in-run vote pooled over evals 1..k (aggregated_voting default)
+  - name: miniarc@MiniARCSingle  # this checkpoint only; logged as eval/MiniARC_single/*
+
+# Training
+global_batch_size: 768        # [cfg] = [P]
+epochs: 100000                # [cfg] = [P]
+eval_interval: 5000           # [P] ([cfg]: 10000)
+min_eval_interval: 0          # [cfg] = [P]
+checkpoint_every_eval: true   # [cfg] = [P]
+
+optimizer: adam_atan2         # [code] AdamATan2 (see the optimizer note above)
+lr: 7.853981633974483e-05     # = [cfg] 1e-4 * pi/4 (this repo's AdamATan2 has a = 4/pi, upstream's a = 1)
+lr_min_ratio: 1.0             # [cfg] constant LR after the warm-up
+lr_warmup_steps: 2000         # [cfg]
+weight_decay: 0.12732395447351627  # = [cfg] 0.1 * 4/pi, so lr * wd = 1e-5 per step as upstream
+beta1: 0.9                    # [cfg]
+beta2: 0.95                   # [cfg]
+
+puzzle_emb_lr: 1e-2           # [cfg]
+puzzle_emb_weight_decay: 0.1  # [cfg]
+
+project_name: sfprm-miniarc   # [P]
+seed: 0                       # [cfg] = [P]
+ema: true                     # [README] ema=True
+ema_rate: 0.999               # [cfg]
+freeze_weights: false         # [cfg]
+profile_flops: false          # this repo's FLOP profiler, off
+
+# Architecture (overrides config/arch/trm.yaml; every key models/recursive_reasoning/trm.py reads is set)
+arch:
+  loss:
+    name: losses@ACTLossHead
+    loss_type: stablemax_cross_entropy  # [arch]
+    q_loss_coeff: 0.5                   # [code] lm + 0.5 * (q_halt + q_continue); q_continue is off (no_ACT_continue)
+    deep_supervision: true              # [code] lm loss on every segment (upstream has no switch)
+
+  halt_exploration_prob: 0.1   # [arch]
+  halt_max_steps: 16           # [arch]
+
+  H_cycles: 3                  # [README] arch.H_cycles=3
+  L_cycles: 4                  # [README] arch.L_cycles=4 ([arch]'s 6 is the Sudoku value)
+  n_backwards_L: ${.L_cycles}  # this repo's knob; = L_cycles is upstream's grad pass (L_cycles L-steps + 1 H-step)
+  H_layers: 0                  # [arch] (TRM ignores it)
+  L_layers: 2                  # [README] arch.L_layers=2
+
+  hidden_size: 512             # [arch]
+  num_heads: 8                 # [arch]
+  expansion: 4                 # [arch]
+  puzzle_emb_ndim: 512         # [arch] ${.hidden_size}
+  puzzle_emb_len: 16           # [arch] 16 puzzle tokens + 25 grid tokens = 41
+  pos_encodings: rope          # [arch]
+  rope_theta: 10000.0          # [code] config default
+  rms_norm_eps: 1.0e-5         # [code] config default
+  forward_dtype: bfloat16      # [arch]
+
+  mlp_t: false                 # [arch] attention token mixer (mlp_t=True is TRM's Sudoku variant)
+  no_ACT_continue: true        # [arch] halt on sigmoid(q_halt) only, no Q-continue target
+  q_logit_from_puzzle_emb: true   # this repo's knob; true = upstream (Q-head reads z_H[:, 0])
+  q_logit_detach_model: false     # this repo's knob; false = upstream
+
+  # This repo's TRM runs its block through models/transformer.FixedPointTransformer. These values make it
+  # the upstream TRM block exactly: z <- z + injection, then per layer x <- rms_norm(x + attn(x)),
+  # x <- rms_norm(x + mlp(x)) (post-norm, plain residuals), no conv, no residual gates, no norm on the
+  # injection, no weight dropout (logit/gradient parity against upstream trm.py checked on CPU).
+  softmax_temp: 1.0
+  norm_type: post-norm
+  norm_placement: none
+  conv_type: none
+  conv_kernel_size: 4          # inert (conv_type none)
+  conv_bias: false             # inert
+  residual_scale: null         # alpha_1 = alpha_2 = beta_1 = beta_2 = 1
+  alpha_1_init: 0.5            # inert (residual_scale null), but must lie in (0, 1)
+  alpha_2_init: 0.5            # inert
+  outer_only: false
+  normalize_input_injection: false
+  use_spec_norm_linear: false
+  weight_dropout: 0.0

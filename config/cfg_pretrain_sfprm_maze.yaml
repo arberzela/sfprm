@@ -1,0 +1,114 @@
+# SFPRM (spherical FPRM) on Maze-Hard (30x30).
+#
+# >>> CRITICAL DATA NOTE (same as FPRM) <<<
+# Train on the NON-augmented build (data/maze-30x30-hard-1k-noaug).
+#
+# The released checkpoint was trained on 8 GPUs (2 nodes x 4, 96 per GPU), e.g. per node:
+#   torchrun --nnodes=2 --nproc-per-node=4 --rdzv-backend=c10d --rdzv-endpoint=$HEAD_NODE:29850 \
+#       pretrain.py --config-name cfg_pretrain_sfprm_maze
+
+defaults:
+  - arch: sfprm
+  - _self_
+
+hydra:
+  output_subdir: null
+
+# Data (NON-augmented — see note above)
+data_paths: ['data/maze-30x30-hard-1k-noaug']
+data_paths_test: []
+evaluators: []
+
+# Training
+global_batch_size: 768     # = FPRM. 96 per GPU on 8 GPUs (with the spectral regularizer off)
+epochs: 60000
+eval_interval: 5000
+min_eval_interval: 0
+checkpoint_every_eval: true
+
+# SFPRM's working optimizer recipe
+optimizer: muon
+muon_lr: 5e-3
+muon_momentum: 0.95
+lr: 1e-3                   # AdamW side (embeddings, scales, lm_head)
+lr_min_ratio: 1.0
+lr_warmup_steps: 200
+weight_decay: 0.1
+beta1: 0.9
+beta2: 0.95
+
+puzzle_emb_lr: 1e-2        # sparse SignSGD side, matching the FPRM maze config
+puzzle_emb_weight_decay: 0.0
+
+seed: 1                    # seed of the released checkpoint
+ema: true
+ema_rate: 0.999
+freeze_weights: false
+profile_flops: false
+
+# Architecture (overrides config/arch/sfprm.yaml)
+arch:
+  H_cycles: 3
+  H_layers: 0
+  L_cycles: 6
+  L_layers: 2
+  n_backwards_L: 6
+
+  hidden_size: 512
+  num_heads: 8
+  expansion: 4
+  puzzle_emb_len: 16
+  puzzle_emb_ndim: 512
+  pos_encodings: rope
+  forward_dtype: bfloat16
+
+  # iteration caps (matched to FPRM maze)
+  max_iter: 24
+  max_iter_dist: det
+  max_iter_eval: 1000
+
+  # spherical fixed-point solver
+  fp_thresh: 0.01
+  eta_min: 1.0e-3
+  slerp_eps: 1.0e-6
+  stepsize: 1.0
+  stepsize_decay_train: 0.9
+  stepsize_decay_eval: 0.99
+  decay_patience: 5
+
+  # spherical block (nGPT-style)
+  eigen_lr_init: 0.5
+  lambda_inject: 0.1              # now the INIT for the learned parameter below
+  # Learn the gslerp input-injection fraction instead of fixing it, mirroring how FPRM
+  # learns its residual-mix alphas (logit parameter + sigmoid, no weight decay).
+  lambda_inject_learnable: true
+
+  # minimal working recipe: unbounded readout,
+  # plain last-iterate readout
+  normalize_lm_head: false
+  sz_init: 16.0
+  eval_readout_best: false
+
+  # Conv matched to FPRM's Maze config (cfg_pretrain_maze.yaml): depthwise CAUSAL 1D
+  # over the sequence, k=4, no bias. The block l2-normalizes the result back onto the
+  # sphere (the conv is a plain linear map and does not preserve norm).
+  use_conv: true
+  conv_type: conv1d
+  conv_kernel_size: 4
+  conv_bias: false
+
+  # Tangent-space log-norm regularizer (weight = loss.jacobian_reg_lambda == nu).
+  n_spectral_samples: 0
+  spectral_eps: 1.0e-3
+  spectral_delta: 0.1
+  spectral_xi: 0.05
+
+  softmax_temp: 1.0
+  variational_dropout: 0.1   # multiplicative mask on the block output, reused across iterations
+  weight_dropout: 0.1
+
+  loss:
+    loss_type: stablemax_cross_entropy
+    q_loss_coeff: 0.0          # halting is fixed-point; Q-head is metric-only
+    deep_supervision: true
+    jacobian_reg_lambda: 0.1   # nu; sweep winner (was 0.01, the under-halting baseline)

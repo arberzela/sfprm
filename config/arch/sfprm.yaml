@@ -1,0 +1,69 @@
+name: spherical_fixed_point_reasoning.sfprm@SphericalFixedPointReasoningModel_ACTV1
+loss:
+  name: losses@ACTLossHead
+  loss_type: stablemax_cross_entropy
+  q_loss_coeff: 0.0            # halting is fixed-point; the Q-head is metric-only (and detached)
+  deep_supervision: true
+  jacobian_reg_lambda: 0.01    # weight nu on the tangent-space log-norm regularizer (Sec. 3.5)
+
+H_cycles: 3
+L_cycles: 6
+
+H_layers: 0
+L_layers: 2
+
+max_iter: 1000
+max_iter_eval: null
+n_backwards_L: ${.L_cycles}
+
+hidden_size: 512
+num_heads: 8
+expansion: 4
+
+puzzle_emb_ndim: ${.hidden_size}
+
+pos_encodings: rope
+forward_dtype: bfloat16
+
+mlp_t: False
+puzzle_emb_len: 16
+no_ACT_continue: True
+
+# --- spherical fixed-point solver ---
+fp_thresh: 0.01
+eta_min: 1.0e-3
+slerp_eps: 1.0e-6
+outlier_quantile: 0.25
+stepsize: 1.0
+stepsize_decay_train: 0.9
+stepsize_decay_eval: 0.99
+decay_patience: 5
+eps: 1.0e-8
+init_std: 1.0
+additive_noise_std: 0.0
+fixed_init: false
+max_iter_dist: det
+gamma_alpha: 4.0
+gamma_scale: 16.6666666667
+expon_scale: 72.1347520444
+
+# --- spherical block (nGPT-style) ---
+eigen_lr_init: 0.5
+lambda_inject: 0.1
+sz_init: 1.0
+qk_norm: true
+s_qk_init: 1.0
+normalize_weights: true
+
+# --- tangent-space log-norm regularizer (weight = loss.jacobian_reg_lambda == nu) ---
+# These are untuned fallbacks: every task config pins its own values, so nothing reads them today.
+# The only tuned recipe is Maze-Hard's (delta 0.1, nu 0.1, xi 0.05) in cfg_pretrain_sfprm_maze.yaml
+# -- do not treat it as a universal default, the sweep was single-task and single-seed.
+n_spectral_samples: 1
+spectral_eps: 1.0e-3
+spectral_delta: 0.05
+spectral_xi: 0.0
+
+softmax_temp: 1.0
+variational_dropout: 0.0
+weight_dropout: 0.0

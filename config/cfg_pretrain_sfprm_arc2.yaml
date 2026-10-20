@@ -1,0 +1,18 @@
+# SFPRM (spherical FPRM) on ARC-AGI-2 + ConceptARC,
+# 1000 augmentations.
+#
+# The recipe of the released ARC-2 run: cfg_pretrain_sfprm_arc.yaml (the ARC-1 recipe) verbatim,
+# with only the dataset swapped. 
+#
+# Build the dataset first (README, "Datasets"): data/arc2-aug-1000
+#   python -m dataset.build_arc_dataset --input-file-prefix kaggle/combined/arc-agi \
+#       --output-dir data/arc2-aug-1000 --subsets training2 evaluation2 concept \
+#       --test-set-name evaluation2
+#
+#   torchrun --standalone --nproc-per-node=8 pretrain.py --config-name cfg_pretrain_sfprm_arc2
+
+defaults:
+  - cfg_pretrain_sfprm_arc
+  - _self_
+
+data_paths: ['data/arc2-aug-1000']
