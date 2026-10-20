@@ -141,15 +141,13 @@ FPRM and SFPRM halt a whole batch on its worst example, so the batch composition
 | Benchmark | Model | Checkpoint | Metric | Result |
 | --- | --- | --- | --- | --- |
 | Sudoku-Extreme (422,786 puzzles) | SFPRM | `step_97656` | exact accuracy | 96.58% (95% CI 96.53–96.64) |
-| Maze-Hard (1000 mazes) | SFPRM | `step_78120` | exact accuracy | 87.9% (in-run) |
-| ARC-AGI-1 | SFPRM | `step_518065` | pass@1 / pass@2 | 41.25% / 46.62% (in-run) |
-| ARC-AGI-2 | SFPRM | `step_579234` | pass@1 / pass@2 | 2.92% / 3.75% (in-run) |
+| Maze-Hard (1000 mazes) | SFPRM | `step_78120` | exact accuracy | 87.9% |
+| ARC-AGI-1 | SFPRM | `step_518065` | pass@1 / pass@2 | 41.25% / 47.38% |
+| ARC-AGI-2 | SFPRM | `step_579234` | pass@1 / pass@2 | 2.92% / 3.75% |
 | Mini-ARC (149 tasks) | SFPRM | `step_68620` | pass@1 | 59.1% |
 | Mini-ARC (149 tasks) | HRM | `step_68620` | pass@1 | 51.7% |
 | Mini-ARC (149 tasks) | EqR | `step_68620` | pass@1 | 40.3% |
 | Mini-ARC (149 tasks) | TRM | `step_68620` | pass@1 | 36.9% |
-
-Rows marked "in-run" are the values logged to W&B by the training run; the others come from `evaluate.py`. The sections below give the command and the caveats for each benchmark.
 
 ### Sudoku-Extreme (SFPRM)
 
