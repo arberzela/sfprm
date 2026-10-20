@@ -2,21 +2,7 @@
 
 This is the on-sphere analogue of ``FixedPointOptimizer`` (``model_utils.py``). It carries the
 per-sample solver state for a weight-tied block whose token states live on the unit sphere
-``S^{d-1}`` and advances them with a damped *geodesic* step. It implements the six pieces needed to
-make the looped spherical iteration actually run:
-
-  (#9)  guarded SLERP step + chordal residual    -> :func:`gslerp`, :func:`chordal_residual`
-  (#8)  all control state under ``no_grad``       -> only the ``gslerp`` step in :meth:`step` carries grad
-  (#10) per-sample halting                        -> :meth:`halted` returns a per-sample mask
-  (#11) worst-token (``max_t``) residual          -> :func:`chordal_residual`
-  (#7)  hard iteration cap + sampled depth        -> per-sample ``max_iter`` sampled in :meth:`reset`
-  (#12) best-iterate readout                      -> ``y_best`` tracked; :meth:`get_output`
-  (#13) train/eval step-size-decay split          -> decay selected by ``self.training``
-
-The module deliberately keeps FPRM's interface (``reset`` / ``step`` / ``cont`` / ``detach_state``)
-so it can drop into a model in place of ``FixedPointOptimizer`` with minimal changes. Config is read
-with ``getattr(..., default)`` so it works both with ``FPRMConfig`` and a plain namespace (tests).
-"""
+``S^{d-1}`` and advances them with a damped *geodesic* step."""
 
 import math
 from typing import Callable, Dict, Optional
@@ -135,12 +121,6 @@ def spectral_logabs_penalty(f: Callable[[torch.Tensor], torch.Tensor], z: torch.
     block ``f`` along a random *tangent* direction; the estimate is differentiable w.r.t. ``f``'s
     parameters. The optional ``xi`` term adds the Frobenius penalty to cap rotation magnitude so the
     convergent step size ``eta_0`` stays usable.
-
-    ``stats``, when given, is filled with the *raw* Rayleigh quotient statistics behind the hinge.
-    They are the direct empirical read on Prop. 2: ``mu2_mean``/``mu2_max`` estimate the tangent-space
-    logarithmic norm ``mu_2(J)`` (values >= 1 mean the iteration is locally expansive and the loop is
-    not a contraction), ``active_frac`` is the fraction of token slots the hinge is actually pushing
-    on, and ``jvp_norm = ||J v||`` is the local gain along a random unit tangent direction.
     """
     z = z.detach()
     total = z.new_zeros(())

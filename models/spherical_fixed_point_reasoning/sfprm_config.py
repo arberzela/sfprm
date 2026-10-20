@@ -44,12 +44,6 @@ class SFPRMConfig(ReasoningModelConfig):
     # ---- spherical block (nGPT-style) ----
     eigen_lr_init: float = 0.5            # init for the per-dim eigen learning rates alpha_A/alpha_M
     lambda_inject: float = 0.1            # on-sphere input re-injection fraction (>0: anti-collapse)
-    # When True, lambda_inject becomes a learned parameter instead of a fixed constant, mirroring
-    # how FPRM learns its residual-mix alphas (models/transformer.py: a logit parameter squashed
-    # through sigmoid, excluded from weight decay). `lambda_inject` above is then the INIT value.
-    # Unlike FPRM's alphas -- which are per-hidden-dim -- this is a SCALAR: gslerp interpolates
-    # along a great circle and documents eta as broadcastable to (..., 1), so a per-dim coefficient
-    # would break the geodesic identity and the unit-norm guarantee (Prop. 1).
     lambda_inject_learnable: bool = False
     sz_init: float = 1.0                  # learned logit scale s_z
     qk_norm: bool = True                  # nGPT QK-normalization in attention
@@ -57,15 +51,7 @@ class SFPRMConfig(ReasoningModelConfig):
     normalize_weights: bool = True        # nGPT weight normalization (post-step + at init)
     normalize_lm_head: bool = True        # also unit-normalize lm_head rows (False -> unbounded logits)
     eval_readout_best: bool = True        # eval reads best-residual iterate (False -> last, matching train)
-    # Depthwise causal 1D conv inside the tied block (SphericalFixedPointTransformer reads this
-    # via getattr). It was referenced by config files and by the block, but never declared here,
-    # so pydantic's default extra='ignore' silently dropped it and the branch was unreachable.
-    # Declaring it changes nothing for existing configs (they set false, which was the effective
-    # value regardless); it makes true actually selectable.
     use_conv: bool = False
-    # conv_type/conv_kernel_size/conv_bias mirror models/config.py so an SFPRM run can be given
-    # the SAME conv as its FPRM counterpart (FPRM's Sudoku config is conv2d / k=3 / no bias).
-    # conv1d is the default so pre-existing use_conv=true configs keep their old behaviour.
     conv_type: str = "conv1d"             # 'conv1d' (causal, whole sequence) | 'conv2d' (grid)
     conv_kernel_size: int = 4             # must be ODD for conv2d
     conv_bias: bool = False
