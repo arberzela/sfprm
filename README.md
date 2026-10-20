@@ -1,6 +1,10 @@
 # Spherical Fixed-Point Reasoners: Adaptive Loop Halting on the Hypersphere
 
-[📄 Paper (arXiv:2610.25646)](https://arxiv.org/abs/2610.25646)
+<p align="center">
+  <a href="https://arxiv.org/abs/2610.25646"><img src="https://img.shields.io/badge/Paper-arXiv:2610.25646-b31b1b?style=for-the-badge&logo=arxiv&logoColor=white" alt="Paper (arXiv:2610.25646)"></a>
+  <a href="https://arberzela.github.io/blog/sfprm/"><img src="https://img.shields.io/badge/Blog-Read%20the%20post-4B8BBE?style=for-the-badge&logo=rss&logoColor=white" alt="Blog post"></a>
+  <a href="https://huggingface.co/arberzela/sfprm"><img src="https://img.shields.io/badge/Checkpoints-Hugging%20Face-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black" alt="Checkpoints on Hugging Face"></a>
+</p>
 
 Training and evaluation code, configs and checkpoints for **SFPRM**, the spherical variant of FPRM. SFPRM keeps FPRM's weight-tied looped Transformer block but keeps its fixed-point iterate on the unit hypersphere, with an nGPT-style normalized block and a damped geodesic solver that halts on a chordal residual. Tasks: Sudoku-Extreme, Maze-Hard (30×30), ARC-AGI-1, ARC-AGI-2 and Mini-ARC.
 
